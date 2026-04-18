@@ -3,9 +3,6 @@ use serde_derive::{Deserialize, Serialize};
 
 use std::{collections::HashMap, process::Command};
 
-//Stardew command "steam steam://rungameid/413150"
-//
-
 #[derive(Serialize, Deserialize)]
 struct Config {
     games: HashMap<String, String>,
@@ -47,13 +44,6 @@ fn main() {
     } else {
         loadgame(cfg.games, args.game);
     }
-
-    /*
-    let _command = Command::new("steam")
-        .arg("steam://rungameid/413150")
-        .output()
-        .expect("Failed to run game");
-    */
 }
 
 fn loadgame(games: HashMap<String, String>, key: String) {
