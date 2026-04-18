@@ -18,16 +18,20 @@ impl ::std::default::Default for Config {
 
 #[derive(Parser)]
 struct Cli {
+    ///Add a game to your list, requires both game name and id
     #[arg(short, long, default_value_t = false)]
     add: bool,
+    ///Remove a game from your list, requires the game name
     #[arg(short, long, default_value_t = false)]
     remove: bool,
-    #[arg(short, long, default_value_t = String::new())]
-    game: String,
-    #[arg(short, long, default_value_t = String::new())]
-    id: String,
+    ///Display a list of your games
     #[arg(short, long, default_value_t = false)]
     list: bool,
+
+    ///Game name, Example: "Space Game"
+    game: Option<String>,
+    ///Game Id, Example: "123456"
+    id: Option<String>,
 }
 
 fn main() {
@@ -46,62 +50,68 @@ fn main() {
     }
 }
 
-fn loadgame(games: HashMap<String, String>, key: String) {
-    if key == String::new() {
-        eprintln!("Please enter the name of a game\nExample: --game 'awesomegame'");
-        return;
-    }
-    println!("Searching for: {}", key);
-    if games.contains_key(&key) {
-        match games.get(&key) {
-            Some(game) => {
-                println!("Found Game with id: {}", game);
-                let mut game_command = "steam://rungameid/".to_string();
-                game_command.push_str(game);
-                let _command = Command::new("steam")
-                    .arg(game_command)
-                    .output()
-                    .expect("Failed to run game");
+fn loadgame(games: HashMap<String, String>, game_option: Option<String>) {
+    match game_option {
+        Some(key) => {
+            println!("Searching for: {}", key);
+            if games.contains_key(&key) {
+                match games.get(&key) {
+                    Some(game) => {
+                        println!("Found Game with id: {}", game);
+                        let mut game_command = "steam://rungameid/".to_string();
+                        game_command.push_str(game);
+                        let _command = Command::new("steam")
+                            .arg(game_command)
+                            .output()
+                            .expect("Failed to run game");
+                    }
+                    None => eprintln!("Failed to run game"),
+                }
+            } else {
+                eprintln!("Could not find game")
             }
-            None => eprintln!("Failed to run game"),
         }
-    } else {
-        eprintln!("Could not find game")
+        None => {
+            eprintln!("Please enter the name of a game");
+        }
     }
 }
 
-fn addgame(mut cfg: Config, name: String, id: String) {
-    println!("Adding {} with id: {}", name, id);
-    if id == String::new() {
-        eprintln!("Please enter the id for the game\nExample: --id '123456'");
-        return;
+fn addgame(mut cfg: Config, name_option: Option<String>, id_option: Option<String>) {
+    match name_option {
+        Some(name) => match id_option {
+            Some(id) => {
+                println!("Adding {} with id: {}", name, id);
+
+                if cfg.games.contains_key(&name) {
+                    eprintln!("Game already exists");
+                    return;
+                }
+                cfg.games.insert(name, id);
+                confy::store("steamruster", None, cfg).unwrap();
+                println!("Added game");
+            }
+            None => eprintln!("Please enter the id for your game"),
+        },
+        None => eprintln!("Please enter the name of a game"),
     }
-    if name == String::new() {
-        eprintln!("Please enter the name of a game\nExample: --game 'awesomegame'");
-        return;
-    }
-    if cfg.games.contains_key(&name) {
-        eprintln!("Game already exists");
-        return;
-    }
-    cfg.games.insert(name, id);
-    confy::store("steamruster", None, cfg).unwrap();
-    println!("Added game");
 }
 
-fn delgame(mut cfg: Config, name: String) {
-    println!("Deleting {}", name);
-    if name == String::new() {
-        eprintln!("Please enter the name of a game\nExample: --game 'awesomegame'");
-        return;
+fn delgame(mut cfg: Config, name_option: Option<String>) {
+    match name_option {
+        Some(name) => {
+            println!("Deleting {}", name);
+
+            if !cfg.games.contains_key(&name) {
+                eprintln!("Could not find game");
+                return;
+            }
+            cfg.games.remove(&name);
+            confy::store("steamruster", None, cfg).unwrap();
+            println!("{} Deleted", name);
+        }
+        None => eprintln!("Please enter the name of a game"),
     }
-    if !cfg.games.contains_key(&name) {
-        eprintln!("Could not find game");
-        return;
-    }
-    cfg.games.remove(&name);
-    confy::store("steamruster", None, cfg).unwrap();
-    println!("{} Deleted", name);
 }
 
 fn listgames(games: HashMap<String, String>) {
